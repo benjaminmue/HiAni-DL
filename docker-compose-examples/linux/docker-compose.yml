@@ -1,0 +1,42 @@
+# ============================================================================
+# Linux Docker Compose Configuration
+# ============================================================================
+
+version: '3.8'
+
+services:
+  hianime-webgui:
+    image: ghcr.io/benjaminmue/hiani-dl:latest
+    container_name: hianime-webgui
+    entrypoint: ["/bin/bash", "/app/docker/webgui-entrypoint.sh"]
+    
+    environment:
+      # Timezone - Linux examples
+      TZ: Europe/London  # or America/New_York, Europe/Paris, Asia/Tokyo, etc.
+
+      # Web interface port
+      WEB_PORT: 8080
+
+      # URL allowlist (recommended for security)
+      URL_ALLOWLIST: "hianime.to"
+
+      # Optional: Enable password protection
+      # WEB_USER: admin
+      # WEB_PASSWORD: your-secure-password
+
+    volumes:
+      # Downloaded anime files - Linux path example
+      # Change /home/username/Downloads/Anime to your preferred location
+      - /home/username/Downloads/Anime:/downloads
+
+      # Persistent configuration and database
+      - hianime-config:/config
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
+
+volumes:
+  hianime-config:
+    driver: local

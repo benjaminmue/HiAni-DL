@@ -1,0 +1,50 @@
+# ============================================================================
+# macOS Docker Compose Configuration
+# ============================================================================
+# 
+# ARCHITECTURE NOTE:
+# - Apple Silicon (M1/M2/M3/M4/M5 and newer): Uses ARM64 architecture
+# - The multi-arch image automatically selects ARM64 version
+# - Chromium browser is used as fallback (configured in Dockerfile)
+# - Intel Macs: Uses AMD64 architecture with standard Chrome
+#
+# ============================================================================
+
+version: '3.8'
+
+services:
+  hianime-webgui:
+    image: ghcr.io/benjaminmue/hiani-dl:latest
+    container_name: hianime-webgui
+    entrypoint: ["/bin/bash", "/app/docker/webgui-entrypoint.sh"]
+    
+    environment:
+      # Timezone - macOS examples
+      TZ: America/New_York  # or Europe/London, America/Los_Angeles, Europe/Zurich, etc.
+
+      # Web interface port
+      WEB_PORT: 8080
+
+      # URL allowlist (recommended for security)
+      URL_ALLOWLIST: "hianime.to"
+
+      # Optional: Enable password protection
+      # WEB_USER: admin
+      # WEB_PASSWORD: your-secure-password
+
+    volumes:
+      # Downloaded anime files - macOS path example
+      # Change /Users/YourUsername/Downloads/Anime to your preferred location
+      - /Users/YourUsername/Downloads/Anime:/downloads
+
+      # Persistent configuration and database
+      - hianime-config:/config
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
+
+volumes:
+  hianime-config:
+    driver: local

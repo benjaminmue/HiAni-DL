@@ -99,10 +99,13 @@ services:
       PYTHONDONTWRITEBYTECODE: 1
 
     volumes:
-      # Video file storage
-      - /Users/benjamin/Documents/GitHub/temp:/downloads
+      # Video file storage - Change to your desired download path
+      # See docker-compose-examples/ for platform-specific examples
+      # Windows: C:/Users/YourUsername/Downloads/Anime:/downloads
+      # macOS/Linux: ./downloads or /path/to/your/downloads
+      - ./downloads:/downloads
 
-      # Persistent config (database, logs)
+      # Persistent config (database, logs) - Using named volume for portability
       - hianime-webgui-config:/config
 
     ports:

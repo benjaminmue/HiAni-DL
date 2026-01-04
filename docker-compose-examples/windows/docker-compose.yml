@@ -1,0 +1,49 @@
+# ============================================================================
+# Windows Docker Compose Configuration
+# ============================================================================
+#
+# IMPORTANT: Windows paths use backslashes (\) in Explorer but Docker
+# accepts both forward slashes (/) and backslashes (\) in volume mappings.
+# We use forward slashes for consistency.
+#
+# ============================================================================
+
+version: '3.8'
+
+services:
+  hianime-webgui:
+    image: ghcr.io/benjaminmue/hiani-dl:latest
+    container_name: hianime-webgui
+    entrypoint: ["/bin/bash", "/app/docker/webgui-entrypoint.sh"]
+    
+    environment:
+      # Timezone - Windows examples
+      TZ: America/New_York  # or Europe/London, America/Chicago, Europe/Berlin, etc.
+
+      # Web interface port
+      WEB_PORT: 8080
+
+      # URL allowlist (recommended for security)
+      URL_ALLOWLIST: "hianime.to"
+
+      # Optional: Enable password protection
+      # WEB_USER: admin
+      # WEB_PASSWORD: your-secure-password
+
+    volumes:
+      # Downloaded anime files - Windows path example
+      # Change C:/Users/YourUsername/Downloads/Anime to your preferred location
+      # Note: Use forward slashes (/) or escaped backslashes (\\)
+      - C:/Users/YourUsername/Downloads/Anime:/downloads
+
+      # Persistent configuration and database
+      - hianime-config:/config
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
+
+volumes:
+  hianime-config:
+    driver: local
