@@ -1,17 +1,12 @@
-name: Build and Push Docker Image
+name: Build and Push Multi-Arch Docker Image
 
 on:
   push:
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - 'LICENSE'
+    branches: [ main ]
+    tags: [ 'v*' ]
   release:
-    types: [published]
-  workflow_dispatch:
+    types: [ published ]
+  workflow_dispatch:  # Allows manual triggering
 
 env:
   REGISTRY: ghcr.io
@@ -27,6 +22,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64,amd64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -44,24 +44,34 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # Set 'latest' tag for main branch
-            type=raw,value=latest,enable={{is_default_branch}}
-            # Tag with git commit SHA
-            type=sha,format=short
-            # Tag with version for releases
+            # Tag with branch name for branch pushes
+            type=ref,event=branch
+            # Tag with PR number for pull requests
+            type=ref,event=pr
+            # Tag with version for releases (v1.0.0)
             type=semver,pattern={{version}}
+            # Tag with major.minor for releases (v1.0)
             type=semver,pattern={{major}}.{{minor}}
+            # Tag with major for releases (v1)
+            type=semver,pattern={{major}}
+            # Tag as latest for main branch
+            type=raw,value=latest,enable={{is_default_branch}}
+            # Tag with SHA for all builds
+            type=sha,prefix={{branch}}-
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          build-args: |
+            PUID=1000
+            PGID=1000
 
       - name: Image digest
         run: echo ${{ steps.meta.outputs.digest }}
