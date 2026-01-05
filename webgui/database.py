@@ -80,7 +80,10 @@ class Database:
         except PermissionError:
             pass  # Try anyway, might work if directory already exists
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
+            # Enable WAL mode for better concurrent access
+            await db.execute("PRAGMA journal_mode=WAL")
+            await db.execute("PRAGMA busy_timeout=30000")  # 30 second timeout
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS jobs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -137,7 +140,7 @@ class Database:
         extra_args: Optional[str] = None,
     ) -> int:
         """Create a new job."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             cursor = await db.execute(
                 """
                 INSERT INTO jobs (url, profile, extra_args, status, created_at)
@@ -150,7 +153,7 @@ class Database:
 
     async def get_job(self, job_id: int) -> Optional[Dict[str, Any]]:
         """Get job by ID."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM jobs WHERE id = ?", (job_id,))
             row = await cursor.fetchone()
@@ -158,7 +161,7 @@ class Database:
 
     async def get_jobs(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """Get all jobs."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ? OFFSET ?",
@@ -187,7 +190,7 @@ class Database:
         values.append(job_id)
         query = f"UPDATE jobs SET {', '.join(fields)} WHERE id = ?"
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             await db.execute(query, values)
             await db.commit()
 
@@ -213,7 +216,7 @@ class Database:
         Returns:
             True if job was successfully claimed, False if it was already claimed/running.
         """
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             # Use a transaction to ensure atomicity
             cursor = await db.execute(
                 """
@@ -266,7 +269,7 @@ class Database:
 
     async def get_active_jobs(self) -> List[Dict[str, Any]]:
         """Get all queued or running jobs."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM jobs WHERE status IN (?, ?) ORDER BY created_at ASC",
@@ -282,7 +285,7 @@ class Database:
         Returns:
             tuple[int, int]: (deleted_count, skipped_count)
         """
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             # First, count running jobs (these will be skipped)
             cursor = await db.execute(
                 "SELECT COUNT(*) FROM jobs WHERE status = ?",
@@ -308,7 +311,7 @@ class Database:
         title: str,
     ) -> int:
         """Create a new episode for a job."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             cursor = await db.execute(
                 """
                 INSERT INTO episodes (job_id, episode_number, title, status, progress_percent)
@@ -321,7 +324,7 @@ class Database:
 
     async def get_episode(self, episode_id: int) -> Optional[Dict[str, Any]]:
         """Get episode by ID."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute("SELECT * FROM episodes WHERE id = ?", (episode_id,))
             row = await cursor.fetchone()
@@ -329,7 +332,7 @@ class Database:
 
     async def get_job_episodes(self, job_id: int) -> List[Dict[str, Any]]:
         """Get all episodes for a job, ordered by episode number."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM episodes WHERE job_id = ? ORDER BY episode_number ASC",
@@ -379,7 +382,7 @@ class Database:
         values = list(updates.values())
         values.append(episode_id)
 
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             await db.execute(
                 f"UPDATE episodes SET {', '.join(fields)} WHERE id = ?",
                 values,
@@ -388,7 +391,7 @@ class Database:
 
     async def find_episode_by_number(self, job_id: int, episode_number: int) -> Optional[Dict[str, Any]]:
         """Find episode by job ID and episode number."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             db.row_factory = aiosqlite.Row
             cursor = await db.execute(
                 "SELECT * FROM episodes WHERE job_id = ? AND episode_number = ?",
@@ -399,7 +402,7 @@ class Database:
 
     async def cancel_job_episodes(self, job_id: int):
         """Mark all incomplete episodes as failed when job is cancelled."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self.db_path, timeout=30.0) as db:
             await db.execute(
                 """
                 UPDATE episodes
